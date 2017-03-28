@@ -1,0 +1,139 @@
+Main runner for everything.
+Load this script in order to run all other scripts.
+Load it as source files before all others.
+
+After this file is loaded, the user then enters two commands to begin analysis. 
+init_workspace() - which loads necessary libraries and source code
+runFullAnalysis(namesOfSets,type="full",subs = 0, subType=NULL) - which runs either the entire analysis or an analysis on the subsets. 
+  namesOfSets is the vector with the strings with the names of the datasets the user wishes to download.
+  type is the string which specifies which type of analysis the user wishes to perform. "full" performs the full analysis; "sub" performs 
+  analysis on a subset of the data
+  "nopp" performs an analysis without preprocessing the data.
+  the subs argument specifies the length of the subset. 
+  subType, when called "group", returns the group from the preprocessing function. 
+  
+init_workspace, when called, loads all libraries and sources.
+It also initializes the directory to one the user hardcodes in...
+```{r}
+init_workspace <- function(){
+  library(knitr)
+  library(reshape2)
+  library(GEOquery)
+  library(refGenome)
+  library(rtracklayer)
+  library(limma)
+  library(affy)
+  library(stringr)
+  library(ggplot2)
+  library(caret)
+  library(FactoMineR)
+  library(FSelector)
+  library(preprocessCore)
+  library(audio)
+  library(RWeka)
+  source("main.R")
+  source("preProcess.R")
+  source("enrich.R")
+  source("normalize.R")
+  source("classify.R")
+  defDir <- "C://Users//Brad//Desktop//rdir//"
+  setwd(defDir)  
+}
+```
+
+This part of the script, when run, initializes the directory automatically, 
+initializes the test sound, loads the audio library, initialzes the vector of queries. 
+```{r}
+defDir <- "C://Users//Brad//Desktop//rdir//"
+setwd(defDir)
+library(audio)
+death<-load.wave("LOZ_Fail.wav")
+queryVector <- c("GSE4757","GSE28146", "GSE4226","GSE1297","GSE33000","GSE44768","GSE44770",
+                 "GSE44771","GSE13214")
+defDir <- "C://Users//Brad//Desktop//rdir//"
+```
+
+This is not used, but can be loaded for testing. 
+```{r}
+celebrate <- function(){
+  play(celebration)
+}
+```
+
+This function allows the code to refresh source code when the code has been changed.
+```{r}
+refreshSrcs <- function(){
+  gc() #run garbage collector      
+  setwd(defDir) #set default directory
+  source("main.R") #load source
+  init_workspace() #load other sources
+}
+```
+
+This code runs the full analysis. When the source is loaded and the 
+The arguments:
+  namesOfSets passes the vector with the names of the GEOdatasets
+  type specifies the type of analysis to be performed.
+    "full" specifies that analysis should be performed on the entire query
+    "sub" specifies that the analysis should be on a subset
+    "nopp" performs an analysis skiping the preprocess step, analyzing all sets in the PP folder.
+```{r}
+
+runFullAnalysis <- function(namesOfSets,type="full",subs = 0, subType="groups"){
+  
+  setwd("C:\\Users\\Brad\\Desktop\\rdir")
+  source("main.R")
+  setwd(defDir)
+  #bigEvent <- load.wave("LOZ_Big.wav")
+  #smallEvent <- load.wave("LOZ_Small.wav")
+  finished <- load.wave("LOZ_Theme.wav") #plays at the end of the program
+
+  #play(bigEvent)
+  #preprocess, downloading all datasets, converting them to csvs and writing them to files
+  #switch function. Full runs full preprocessing stesp. Sub runs subsets. Nopp runs without preprocessing.
+  group <- switch(type,
+                  full = preProcess(namesOfSets),
+                  sub = preProcessSub(namesOfSets,s = subs,ret = subType),
+                  nopp = groupDataByExp(namesOfSets))
+    
+  #play(bigEvent)
+  #reload the written csvs one-by-one (for memory preservation), and write their normalized equivalents
+  loadNormalizeWrite(namesOfSets)
+  
+  #create the normalization directory
+  dir.create("NORM")
+  
+  cat("\n","Beginning A compilation and enrichment...")
+  
+  for(i in 1:length(namesOfSets)){ #for all datasets 
+    setwd("NORM")
+    load <- read.csv(str_c(namesOfSets[i],"NORM.csv"),head=TRUE,sep=",") #read the file
+    #play(smallEvent)
+    aEnrichWriteAllMeas(load,namesOfSets[i]) #write and enrich them all
+   # play(smallEvent)
+    rm(load)
+    gc() #remove the garbage collector
+    setwd(defDir)
+  }
+ # play(bigEvent)
+  
+  setwd(defDir)
+#   
+#   cat("\n","Beginning B compilation and enrichment...")
+#   
+#   for(j in 1:length(group[1,])){ #for all datasets
+#     load <- bCompile(group[,j],row.names(group)) #load and compile the stuff from the csvs
+#     #play(smallEvent)
+#     bEnrichWriteAllMeas(load,names(group)[j]) #write all measures for the loaded set 
+#     #play(smallEvent)
+#   }
+#   
+ # play(bigEvent)
+  setwd(defDir)
+  
+  cat("\n","Beginning performance...")
+  writeAllPerformances() #write all classification successes
+  setwd(defDir)
+  play(finished)
+}
+```

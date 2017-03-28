@@ -1,0 +1,18 @@
+#passed a vector of character vectors
+#what's unique about these physiological structures 
+#finding biomarkers earlier before diagnosis
+#functional mr
+#characteristics between alzh and not
+#colombian group
+#the more distinguishing biomarkers 
+#looking at snp 
+#epigenetic array
+#exons - 
+#bodymass
+#correlation 
+#core embryonic stem cell network
+#quantile distribution
+	#then compare individual genes
+	#QNorm
+#value judgments with data
+

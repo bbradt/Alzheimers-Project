@@ -1,0 +1,180 @@
+classification
+
+These first few functions were written for the KNN analysis. 
+
+Gets the indices for training and testing splitting.
+```{r}
+getIndices <- function(percentTrain,dataset){
+  actual <- percentTrain*0.01
+  trSize <- as.integer(length(dataset[,1])*actual)
+  cat("\n","training size is ",trSize)
+  #trSize <- as.numeric(trSize)
+  train <- sample.int(length(dataset[,1]),size = trSize)
+  #train <- dataset[trainInd,]
+  v <- c(1:20)
+  test <- v[!(v %in% train)]
+  #test <- dataset[testInd,]
+  return(list(train,test))
+}
+```
+
+Subsets training and testing sets from the initial dataset.
+```{r}
+setTrainAndTest <- function(percentTrain,dataset){
+  indDF <- getIndices(percentTrain,dataset)
+  train <- dataset[as.numeric(unlist(indDF[1])),]
+  test <- dataset[as.numeric(unlist(indDF[2])),]
+  return(list(train,test))
+}
+```
+
+Runs KNN.
+```{r}
+runKNN <- function(p,set){
+    cat("\n","running knn...")
+    seps <- setTrainAndTest(p,set)
+    tr <- as.data.frame(seps[1])
+    te <- as.data.frame(seps[2])
+    r <- knn(tr[,1:1000],te[,1:1000],tr$LEVEL)
+    s <- compare(r,te$LEVEL)
+    cat("\n",s," correct predictions","\n")
+    return(s)
+}
+```
+
+Compares results from KNN.
+```{r}
+compClassRes <- function(res,actual){
+  ret <- res[actual]
+  return(length(ret[ret == TRUE]))
+}
+```
+
+Vector with names of classification steps. 
+```{r}
+classNames <- c("ibk","j48","lmt","stump",
+                "ada","bag")
+```
+
+Switch function for classification types.
+```{r}
+classify <- function(data,type){
+  res <- switch(type,
+                ibk = IBk(LEVEL~.,data), 
+                lbr = LBR(LEVEL~., data),
+                j48 = J48(LEVEL~.,data),
+                lmt = LMT(LEVEL~.,data),
+                msp = M5P(LEVEL~.,data), 
+                stump = DecisionStump(LEVEL~.,data),
+                logi = Logistic(LEVEL~.,data),
+                smo = SMO(LEVEL~.,data),
+                ada = AdaBoostM1(LEVEL~.,data),
+                bag = Bagging(LEVEL~.,data),
+                lBoost = LogitBoost(LEVEL~.,data),
+                mBoost = MultiBoostAB(LEVEL~.,data),
+                stack = Stacking(LEVEL~.,data),
+                cs = CostSensitiveClassifier(LEVEL~.,data))
+  return(res)
+}
+```
+
+Classifies all functions, takes their predictions, and compiles them into a dataset of predictions.
+  'data' is the data to use for classification
+  'these' is the vector with the names of the classifiers
+```{r}
+perform <- function(data,these){
+  ini <- vector(length = 150)
+  res <- data.frame(ini)
+  nameVec <- vector()
+  for(i in 1:length(these)){
+    cat("\n",i)
+    performance <- vector()
+    cat("\n","Classifying with ", these[i],"...")
+    performer <- classify(data,these[i])
+    #celebrate()
+    nameVec <- append(nameVec,these[i])
+    predictions <- performer$predictions
+    predictions <- as.data.frame(predictions == 1)
+    if(!(i==1)){res <- cbind(res,predictions)}
+       else{res <- data.frame(predictions)}
+  }
+  names(res) <- nameVec
+  return(res)
+}
+```
+
+Returns a confusion-matrix object for the classification predictions.
+  'Performer' is the dataset. 
+  'Performance' is the result of the perform function, the prediction dataframe
+  'col' is the column containing predictions for the classifier you're testing
+  'classCol' is the column containing actual classes from the original dataset
+```{r}
+rate <- function(performer,performance,col,classCol){
+  cat("\n","What the hell is this: ",performance[,col])
+  cat("\n","And this: ",performer[,classCol])
+  #if(length(performance[FALSE] == 0)){return(data.matrix(1:100,"FAIL"))}
+  pred <- as.factor(performance[,col])
+  cat("\n",levels(pred))
+  act <- as.factor(performer[,classCol])
+  cat("\n",levels(act))
+  if(!(length(levels(pred)) == length(levels(act)))){
+    levels(pred) <- levels(act)
+  }
+  res <- confusionMatrix(pred,act)
+
+  return(res)
+}
+```
+
+writes all classification ratings and predictions to csv files
+```{r}
+writeAllPerformances <- function(){
+  cat("\n","Beginning to write performances...")
+  setwd(defDir)
+  setwd("A")
+  set <- dir()[str_detect(dir(),"EA")]
+  cat("\n","Readable files are: ", set)
+  for(i in 1:length(set)){
+    setwd(defDir)
+    setwd("A")
+    cat("\n","Attempting to read ",set[i])
+    thisData <- read.csv(set[i])
+    thisName <- str_replace(set[i],".csv","")
+    
+    thisAct <- perform(thisData,classNames)
+    for(j in 1:length(thisAct[1,])){
+      cat("\n","Beginning judgment...")
+      thisSucc <- rate(thisData,thisAct,j,length(thisData))
+      setwd(defDir)
+      dir.create("CM")
+      setwd("CM")
+      cat("\n","Writing Judgment... for ",names(thisAct)[j])
+      newName <- str_c(thisName,names(thisAct)[j],".cm")
+      cat("\n",newName)
+      write.matrix(thisSucc,file=newName,sep=",")
+      #celebrate()
+    }
+   # celebrate()
+  }
+  setwd(defDir)
+  setwd("B")
+  set <- dir()[str_detect(dir(),"EB")]
+  for(i in 1:length(set)){
+    setwd(defDir)
+    setwd("B")
+    thisData <- read.csv(set[i])
+    thisName <- str_replace(set[i],".csv","")
+    thisAct <- perform(thisData,classNames)
+    for(j in 1:length(thisAct[1,])){
+      thisSucc <- rate(thisData,thisAct,j,length(thisData))
+      setwd(defDir)
+      dir.create("CM")
+      setwd("CM")
+      cat("\n","Writing Judgment... for ",names(thisAct)[j])
+      write.matrix(thisSucc,file=str_c(thisName,names(thisAct)[j],".cm"),sep=",")
+      #celebrate()
+    }
+   # celebrate()
+  }
+}
+```

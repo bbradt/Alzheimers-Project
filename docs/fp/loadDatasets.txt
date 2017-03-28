@@ -1,0 +1,16 @@
+loadDatasets(query):
+
+script source: 
+preProcess.R
+
+assumed argument value:
+query is a character vector with the names of datasets to be downloaded from the GEOquery database. 
+
+return value:
+returns a vector containing the raw datasets from GEO database
+
+purpose: 
+to automatize GEOdata downloading for the user
+
+called in: 
+preProcess.R:preProcess
